@@ -11,6 +11,7 @@ A student-ready security operations dashboard with persistent demo incidents, a 
 - Structured AI assessment with risk level, prioritized event IDs, evidence, MITRE IDs, mitigation suggestions, confidence, and data gaps.
 - AI copilot with short conversation history, grounded in up to the latest 100 incident records.
 - OpenAI or Groq provider selected by server environment variables.
+- Demo presentation mode with a synthetic-data badge, a keyboard-accessible guided tour, and one-click sample-data reset.
 
 ## Architecture
 
@@ -54,6 +55,18 @@ python app.py
 
 See [Groq supported models](https://console.groq.com/docs/models) for model IDs available to your account. OpenAI is selected when `AI_PROVIDER` is unset.
 
+## Deploy the AI website
+
+GitHub stores the source code; it does not run this Flask app or provide the Groq key to it. GitHub Pages serves static files, so it cannot host this project's Flask `/api/...` routes. Deploy the repository as a Python web service (for example, a Render Web Service) so the dashboard and API run together on the same origin.
+
+For Render, connect the GitHub repository and use:
+
+- Runtime: **Python 3**
+- Build command: `pip install -r requirements.txt`
+- Start command: `gunicorn app:app --bind 0.0.0.0:$PORT`
+
+In the service's **Environment** settings, add `AI_PROVIDER=groq`, `GROQ_API_KEY` with a newly generated key, and `GROQ_MODEL=openai/gpt-oss-20b`. Save and deploy the service. Do not put the key in GitHub source files, HTML, or JavaScript. After deploy, open the service URL and check that the header's AI status reports the provider as configured.
+
 ## API routes
 
 | Method | Route | Purpose |
@@ -73,12 +86,13 @@ See [Groq supported models](https://console.groq.com/docs/models) for model IDs 
 
 ## Demo checklist
 
-1. Start the app and show the seeded timeline and KPIs.
-2. Simulate a ransomware or phishing event and watch the chart, feed, and health score update.
-3. Review the six-hour outlook and its confidence and event-history drivers.
-4. Run **Analyze threats** to get evidence-linked priorities.
-5. Mitigate one event and compare the updated status and score.
-6. Restart the app to demonstrate SQLite persistence; use **Reset demo data** to restore the original scenario.
+1. Start the app and point out the **Synthetic Data** badge so the audience knows the feed is simulated.
+2. Use **Guided tour** for a short walkthrough of the dashboard. Press Escape or Close to exit at any time.
+3. Simulate a ransomware or phishing event and watch the chart, feed, and health score update.
+4. Review the six-hour outlook and its confidence and event-history drivers.
+5. Run **Analyze threats** to get evidence-linked priorities.
+6. Mitigate one event and compare the updated status and score.
+7. Use **Reset demo data** to restore the original scenario before presenting again.
 
 ## Security and deployment
 
