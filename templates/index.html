@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SentinelPulse AI – AI-SOC Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>tailwind.config = { darkMode: 'class' };</script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
+    <script defer src="/static/main.js"></script>
+    <style>
+        :root { color-scheme: dark; --page:#080d1b; --panel:#10182a; --panel-alt:#0b1221; --line:#253149; --muted:#96a3b8; --text:#e8eef8; --blue:#4f8cff; --cyan:#31c9df; }
+        body.light-theme { color-scheme:light; --page:#f3f6fc; --panel:#ffffff; --panel-alt:#f8faff; --line:#e1e7f0; --muted:#69778d; --text:#182338; --blue:#2563eb; --cyan:#0891b2; }
+        body.dark-theme { color-scheme:dark; --page:#080d1b; --panel:#10182a; --panel-alt:#0b1221; --line:#253149; --muted:#96a3b8; --text:#e8eef8; }
+        * { box-sizing:border-box; }
+        html { scroll-behavior:smooth; scroll-padding-top:18px; }
+        body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 80% -20%,#15305a 0,transparent 42%),radial-gradient(ellipse at 5% 20%,#14234a 0,transparent 32%),var(--page) !important; color:var(--text) !important; font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif; }
+        body.light-theme { background:radial-gradient(ellipse at 85% -20%,#dce9ff 0,transparent 40%),var(--page) !important; }
+        header,footer { background:transparent !important; border-color:var(--line); color:var(--text); }
+        header { min-height:90px; border-bottom:1px solid #ffffff15; padding:16px clamp(18px,4vw,56px) !important; }
+        header h1 { font-size:22px !important; font-weight:700 !important; letter-spacing:.01em; }
+        main { max-width:1500px; margin:auto; width:100%; padding:26px clamp(18px,4vw,56px) !important; }
+        section, .bg-slate-800 { background-color:var(--panel) !important; color:var(--text); }
+        .rounded { border-radius:16px !important; }
+        .shadow { box-shadow:0 14px 36px #02061735; }
+        #card-total-logs,#card-active-critical,#card-mitigated,#card-health-score { border:1px solid var(--line); position:relative; overflow:hidden; min-height:126px; transition:transform .18s ease,border-color .18s ease; }
+        #card-total-logs:hover,#card-active-critical:hover,#card-mitigated:hover,#card-health-score:hover { transform:translateY(-3px); border-color:#4f8cff80; }
+        #card-total-logs::before,#card-active-critical::before,#card-mitigated::before,#card-health-score::before { content:""; position:absolute; width:110px; height:110px; border-radius:50%; right:-30px; top:-45px; background:var(--glow); opacity:.15; }
+        #card-total-logs { --glow:#4387ff; } #card-active-critical { --glow:#fb5574; } #card-mitigated { --glow:#27d49b; } #card-health-score { --glow:#ad79ff; }
+        #card-total-logs h2,#card-active-critical h2,#card-mitigated h2,#card-health-score h2 { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.07em; }
+        #card-total-logs p,#card-active-critical p,#card-mitigated p,#card-health-score p { font-size:32px; margin-top:7px; letter-spacing:-.04em; }
+        section > h2 { font-size:15px !important; font-weight:550 !important; }
+        input,select { background:var(--panel-alt) !important; color:var(--text) !important; border:1px solid var(--line) !important; border-radius:9px !important; }
+        input::placeholder { color:#9ca3af; }
+        table { border-collapse:collapse; }
+        thead { background:#172238 !important; }
+        th { color:var(--muted); font-size:11px; font-weight:600; }
+        td,th { border-bottom:1px solid var(--line); }
+        #chatLog { background:var(--panel-alt) !important; border:1px solid var(--line); color:var(--text); }
+        #chatInput { background:var(--panel-alt) !important; border:1px solid var(--line) !important; }
+        #themeToggle { background:var(--panel) !important; color:var(--text) !important; border:1px solid var(--line); }
+        .table-scroll { max-height:400px; overflow:auto; }
+        .dashboard-panel { border:1px solid var(--line); background:linear-gradient(145deg,#ffffff08,transparent 42%),var(--panel) !important; }
+        .section-heading { display:flex; align-items:center; gap:9px; }
+        .section-heading svg { width:17px; height:17px; color:var(--cyan); }
+        .brand-lockup { display:flex; align-items:center; gap:13px; }
+        .brand-mark { display:grid; place-items:center; width:42px; height:42px; color:white; border-radius:13px; background:linear-gradient(145deg,#4f8cff,#7357f5); box-shadow:0 7px 20px #4f8cff55; }
+        .brand-mark svg { width:23px; height:23px; }
+        .eyebrow { text-transform:uppercase; letter-spacing:.16em; font-size:9px; color:#70a5ff; font-weight:700; }
+        .live-pill { display:flex; align-items:center; gap:8px; border:1px solid #1f6c53; background:#0d2a24; color:#53dda9; border-radius:999px; padding:7px 12px; font-size:11px; font-weight:600; }
+        .live-pill span { width:7px; height:7px; border-radius:50%; background:#3cdb9b; box-shadow:0 0 10px #3cdb9b; }
+        .ai-api-status { border:1px solid var(--line); color:var(--muted); border-radius:999px; padding:7px 11px; font-size:11px; white-space:nowrap; }
+        .ai-api-status.ready { color:#53dda9; background:#0d2a24; border-color:#1f6c53; }
+        .ai-api-status.missing { color:#fbbf64; background:#2b2113; border-color:#6b4b1e; }
+        body.light-theme .ai-api-status.ready { color:#047857; background:#ecfdf5; border-color:#a7f3d0; }
+        body.light-theme .ai-api-status.missing { color:#92400e; background:#fffbeb; border-color:#fde68a; }
+        main > .kpi-grid { background:transparent !important; border:0; box-shadow:none; padding:0; align-items:stretch; }
+        .kpi-grid > div { min-height:106px; display:flex; flex-direction:column; justify-content:center; }
+        .chart-grid { align-content:start; align-items:stretch; }
+        .chart-grid > div { min-width:0; }
+        .chart-frame { position:relative; width:100%; height:360px; }
+        .chart-frame canvas { display:block; }
+        .forecast-panel { border:1px solid var(--line); border-radius:16px; padding:17px; background:linear-gradient(145deg,#142344,var(--panel) 62%) !important; }
+        body.light-theme .forecast-panel { background:linear-gradient(145deg,#edf4ff,var(--panel) 62%) !important; }
+        .forecast-top { display:flex; justify-content:space-between; gap:12px; align-items:flex-start; }
+        .forecast-score { font-size:27px; line-height:1.15; font-weight:750; letter-spacing:-.04em; }
+        .forecast-level { color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.1em; }
+        .forecast-metrics { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:9px; margin-top:14px; }
+        .forecast-metric { min-width:0; padding:10px; border:1px solid var(--line); background:var(--panel-alt); border-radius:11px; }
+        .forecast-metric-label { color:var(--muted); font-size:9px; text-transform:uppercase; letter-spacing:.08em; }
+        .forecast-metric-value { margin-top:4px; font-weight:650; font-size:13px; overflow-wrap:anywhere; }
+        .forecast-bars { display:flex; align-items:flex-end; gap:7px; height:61px; margin-top:13px; }
+        .forecast-bar-wrap { flex:1; height:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:4px; color:var(--muted); font-size:8px; }
+        .forecast-bar { width:100%; min-height:3px; max-width:26px; border-radius:5px 5px 2px 2px; background:linear-gradient(0deg,#5276eb,#42c6d5); }
+        .forecast-note { color:var(--muted); font-size:9px; line-height:1.5; margin-top:10px; }
+        .forecast-drivers { color:var(--text); font-size:10px; margin-top:8px; display:grid; gap:4px; }
+        .forecast-loading { color:var(--muted); font-size:11px; margin-top:10px; }
+        main > .feed-panel { align-self:stretch; min-width:0; }
+        main > .copilot-panel { align-self:stretch; min-width:0; }
+        .copilot-panel #chatLog { flex:1; min-height:190px; }
+        .copilot-panel { padding:18px !important; }
+        .copilot-header { display:flex; align-items:center; gap:11px; padding-bottom:13px; border-bottom:1px solid var(--line); }
+        .copilot-icon { display:grid; place-items:center; width:37px; height:37px; border-radius:12px; color:#fff; background:linear-gradient(140deg,#7466ff,#398bff); box-shadow:0 5px 18px #4f70ff45; }
+        .copilot-icon svg { width:19px; }
+        .copilot-title { font-size:14px; font-weight:650; }
+        .copilot-subtitle { color:var(--muted); font-size:11px; }
+        .clear-chat-btn { margin-left:auto; display:grid; place-items:center; background:transparent; color:var(--muted); border:1px solid var(--line); border-radius:8px; width:31px; height:31px; }
+        .clear-chat-btn:hover { color:var(--text); background:var(--panel-alt); }
+        .prompt-label { margin:13px 0 7px; color:var(--muted); font-size:10px; text-transform:uppercase; letter-spacing:.1em; font-weight:650; }
+        .quick-prompts { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
+        .copilot-panel .quick-btn { padding:6px 9px !important; background:var(--panel-alt) !important; color:var(--text) !important; border:1px solid var(--line); border-radius:999px !important; font-size:10px; line-height:1.3; }
+        #chatLog { flex:1; min-height:190px; max-height:270px; overflow:auto; padding:10px !important; border-radius:12px !important; }
+        #chatLog:empty::before { content:'Ask about alerts, severity, suspicious patterns, or recommended response steps.'; display:block; color:var(--muted); font-size:12px; padding:7px; }
+        .chat-welcome { margin:7px; color:var(--muted); font-size:11px; line-height:1.6; }
+        .chat-message { display:flex; gap:8px; margin:6px 0 11px; align-items:flex-start; }
+        .chat-message.user { justify-content:flex-end; }
+        .chat-avatar { width:25px; height:25px; flex:0 0 25px; display:grid; place-items:center; border-radius:9px; color:#fff; background:#6258d9; font-size:12px; }
+        .user .chat-avatar { background:#2877dd; }
+        .message-bubble { max-width:88%; padding:9px 11px; border:1px solid var(--line); border-radius:4px 12px 12px 12px; background:var(--panel); color:var(--text); font-size:12px; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .user .message-bubble { background:#173260; border-color:#294c7c; border-radius:12px 4px 12px 12px; }
+        body.light-theme .user .message-bubble { background:#eaf2ff; border-color:#c9dcff; }
+        .message-time { color:var(--muted); font-size:9px; margin-top:4px; }
+        .copilot-compose { display:flex; gap:8px; align-items:flex-end; margin-top:9px; }
+        #chatInput { resize:vertical; min-height:42px; max-height:110px; flex:1; padding:10px 11px !important; font-size:12px; outline:none; }
+        #chatInput:focus { border-color:#4f8cff !important; }
+        #sendChat { display:grid; place-items:center; width:41px; height:41px; border:0; border-radius:10px; color:white; background:#4778ed; }
+        #sendChat:hover { background:#5a89fa; }
+        #sendChat:disabled { opacity:.55; cursor:wait; }
+        .ai-brief { grid-column:span 12; display:flex; gap:16px; align-items:flex-start; padding:17px 20px; border:1px solid #34466a; background:linear-gradient(100deg,#17284a,#111a2e 52%,var(--panel)) !important; }
+        .brief-icon { flex:0 0 38px; height:38px; display:grid; place-items:center; color:#c1a9ff; background:#332b68; border-radius:11px; }
+        .brief-icon svg { width:19px; }
+        .brief-copy { flex:1; min-width:0; }
+        .brief-heading { font-size:13px; font-weight:650; }
+        .brief-description { font-size:11px; color:var(--muted); margin-top:2px; }
+        #aiBriefResult { margin-top:9px; font-size:12px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
+        .brief-result { margin-top:11px; }
+        .brief-result:empty { display:none; }
+        .brief-summary { font-size:12px; line-height:1.65; }
+        .brief-meta { display:flex; flex-wrap:wrap; gap:7px; align-items:center; margin:0 0 7px; }
+        .risk-pill,.confidence-pill { border-radius:999px; padding:3px 8px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.06em; }
+        .risk-critical { background:#4b1e2b; color:#ff9aac; }.risk-high { background:#4a2b18; color:#ffc187; }.risk-medium { background:#403816; color:#f8df7d; }.risk-low { background:#153a2d; color:#79e4b4; }.risk-informational { background:#20324b; color:#a8caff; }
+        .confidence-pill { color:var(--muted); background:var(--panel-alt); border:1px solid var(--line); }
+        .priority-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin-top:10px; }
+        .priority-card { border:1px solid var(--line); border-radius:11px; padding:10px; background:var(--panel-alt); min-width:0; }
+        .priority-card h3 { font-size:11px; margin:5px 0; font-weight:650; }
+        .priority-card p { font-size:10px; line-height:1.45; color:var(--muted); margin:4px 0; }
+        .priority-event { color:#79aaff; font-size:9px; font-weight:650; }
+        .brief-section-label { color:var(--muted); font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:.1em; margin-top:11px; }
+        .brief-gaps { color:var(--muted); font-size:10px; margin-top:4px; }
+        .empty-feed { padding:24px 12px !important; text-align:center; color:var(--muted); }
+        .range-select { padding:6px 8px; font-size:10px; }
+        .reset-demo-button { color:var(--text); background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:8px 10px; font-size:11px; }
+        .reset-demo-button:hover { border-color:#4f8cff; }
+        .brief-button { flex:0 0 auto; color:white; background:#5276eb; border:0; border-radius:9px; padding:9px 12px; font-size:11px; font-weight:600; }
+        .brief-button:hover { background:#6286fa; }
+        .brief-button:disabled { opacity:.55; cursor:wait; }
+        body.light-theme .ai-brief { border-color:#c7d7fb; background:linear-gradient(100deg,#eaf1ff,#fff 70%) !important; }
+        body.light-theme .brief-icon { background:#e1eaff; color:#4f46e5; }
+        .clear-feed-button { background:#25181f; color:#ff9aaf; border:1px solid #573044; border-radius:9px; padding:8px 11px; }
+        .clear-feed-button:hover { background:#38202b; }
+        footer { border-top:1px solid var(--line); color:#6b7280; }
+        .sim-btn,.quick-btn { transition:filter .15s ease,transform .15s ease; }
+        .sim-btn:hover,.quick-btn:hover { filter:brightness(1.08); transform:translateY(-1px); }
+        .sim-grid .sim-btn { min-height:49px; text-align:left; padding:9px 11px !important; font-size:12px; font-weight:600; box-shadow:inset 0 1px #ffffff20; }
+        canvas { max-width:100%; }
+        body.light-theme header { border-color:var(--line); }
+        body.light-theme .dashboard-panel { background:linear-gradient(145deg,#eff6ff,transparent 44%),var(--panel) !important; }
+        body.light-theme .live-pill { background:#ecfdf5; color:#047857; border-color:#a7f3d0; }
+        body.light-theme .clear-feed-button { background:#fff5f4; color:#b42318; border-color:#f1c5c1; }
+        body.light-theme thead { background:#f1f5f9 !important; }
+        body.light-theme td,body.light-theme th { border-color:var(--line); }
+        body.light-theme #themeToggle { color:#24324a !important; }
+        body.dark-theme footer { color:#8795ab; }
+        @media(max-width:700px) { header { padding:14px 16px !important; } main { padding:14px !important; } .chart-frame { height:280px; } .live-pill,.ai-api-status { display:none; } .priority-grid { grid-template-columns:1fr; } .ai-brief { flex-wrap:wrap; } .brief-button { margin-left:53px; } }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen dark-theme">
+    <header class="p-4 flex justify-between items-center">
+        <div class="brand-lockup"><div class="brand-mark"><i data-lucide="shield-check"></i></div><div><div class="eyebrow">Security operations · AI powered</div><h1 class="text-2xl font-bold">SentinelPulse AI</h1><p class="text-xs text-slate-400">Live threat monitoring &amp; incident response</p></div></div>
+        <div class="flex items-center gap-3"><div class="live-pill"><span></span>MONITORING LIVE</div><div id="aiApiStatus" class="ai-api-status">Checking AI API…</div><button id="resetDemoBtn" class="reset-demo-button">Reset demo data</button><button id="themeToggle" class="px-3 py-2 rounded text-sm" aria-pressed="true">Light theme</button></div>
+    </header>
+    <main class="grid grid-cols-12 gap-4">
+        <section id="overview" class="kpi-grid col-span-12 grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-slate-800 p-4 rounded shadow" id="card-total-logs"><h2 class="text-lg font-medium">Total Logs Analyzed</h2><p class="text-3xl font-bold" id="kpi-total-logs">0</p></div>
+            <div class="bg-slate-800 p-4 rounded shadow" id="card-active-critical"><h2 class="text-lg font-medium">Active Critical Alerts</h2><p class="text-3xl font-bold" id="kpi-active-critical">0</p></div>
+            <div class="bg-slate-800 p-4 rounded shadow" id="card-mitigated"><h2 class="text-lg font-medium">Mitigated Threats</h2><p class="text-3xl font-bold" id="kpi-mitigated">0</p></div>
+            <div class="bg-slate-800 p-4 rounded shadow" id="card-health-score"><h2 class="text-lg font-medium">Security Health Score</h2><p class="text-3xl font-bold" id="kpi-health-score">0%</p></div>
+        </section>
+        <section id="aiBrief" class="ai-brief rounded shadow">
+            <div class="brief-icon"><i data-lucide="sparkles"></i></div>
+            <div class="brief-copy"><div class="brief-heading">AI Threat Assessment</div><div class="brief-description">Evidence-linked risk priorities, response steps, confidence, and data gaps from the current incident feed.</div><div id="aiBriefResult" class="brief-result" aria-live="polite"><div class="brief-description">Run an assessment when you’re ready. It uses the records currently shown in the threat feed.</div></div></div>
+            <button id="runAiBrief" class="brief-button">Analyze threats</button>
+        </section>
+        <section id="analytics" class="chart-grid col-span-12 lg:col-span-8 grid grid-cols-1 gap-4">
+            <div class="bg-slate-800 p-4 rounded shadow dashboard-panel"><div class="flex justify-between items-center gap-3 mb-2"><h2 class="section-heading text-lg font-medium"><i data-lucide="activity"></i>Threat Activity</h2><select id="activityRange" class="range-select" aria-label="Activity time range"><option value="24">24 hours</option><option value="168">7 days</option></select></div><div class="chart-frame"><canvas id="lineChart"></canvas></div></div>
+            <div id="forecastPanel" class="forecast-panel"><div class="forecast-top"><div><div class="eyebrow">Predictive network security</div><h2 class="section-heading text-lg font-medium mt-1"><i data-lucide="orbit"></i>6-hour threat outlook</h2><div class="brief-description">A trend forecast from your recorded incident history</div></div><span id="forecastConfidence" class="confidence-pill">Loading</span></div><div id="forecastContent" class="forecast-loading" aria-live="polite">Building the outlook from the latest events…</div></div>
+        </section>
+        <section id="simulator" class="col-span-12 lg:col-span-4 bg-slate-800 p-4 rounded shadow dashboard-panel">
+            <h2 class="section-heading text-lg font-medium mb-2"><i data-lucide="radio"></i>Attack Simulator</h2>
+            <p class="text-xs text-slate-400 mb-4">Generate a sample event to see the response flow in action.</p>
+            <div class="sim-grid grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <button class="sim-btn bg-red-600 hover:bg-red-500 text-white py-2 rounded" data-type="Brute Force">Brute Force</button>
+                <button class="sim-btn bg-orange-600 hover:bg-orange-500 text-white py-2 rounded" data-type="SQL Injection">SQL Injection</button>
+                <button class="sim-btn bg-purple-600 hover:bg-purple-500 text-white py-2 rounded" data-type="DDoS">DDoS</button>
+                <button class="sim-btn bg-cyan-700 hover:bg-cyan-600 text-white py-2 rounded" data-type="Malware">Malware</button>
+                <button class="sim-btn bg-blue-700 hover:bg-blue-600 text-white py-2 rounded" data-type="Phishing">Phishing</button>
+                <button class="sim-btn bg-rose-800 hover:bg-rose-700 text-white py-2 rounded" data-type="Ransomware">Ransomware</button>
+                <button class="sim-btn bg-slate-700 hover:bg-slate-600 text-white py-2 rounded sm:col-span-2" data-type="Port Scan">Port Scan</button>
+            </div>
+        </section>
+        <section id="incidents" class="feed-panel col-span-12 lg:col-span-8 bg-slate-800 p-4 rounded shadow dashboard-panel">
+            <div class="flex justify-between items-center gap-3 mb-3"><h2 class="section-heading text-lg font-medium"><i data-lucide="shield-alert"></i>Threat Feed</h2><button id="clearFeedBtn" class="clear-feed-button">Clear feed</button></div>
+            <div class="flex flex-wrap gap-4 mb-2">
+                <select id="severityFilter" class="py-2 px-3"><option value="All">All Severities</option><option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select>
+                <input type="text" id="searchBox" placeholder="Search IP or Attack" class="py-2 px-3 flex-1" />
+                <button id="exportBtn" class="bg-emerald-600 hover:bg-emerald-500 text-white py-2 px-3 rounded">Download Report</button>
+            </div>
+            <div class="table-scroll"><table class="w-full table-auto"><thead><tr><th class="p-2 text-left">Time</th><th class="p-2 text-left">Source IP</th><th class="p-2 text-left">Attack Type</th><th class="p-2 text-left">MITRE ID</th><th class="p-2 text-left">Severity</th><th class="p-2 text-left">Status</th><th class="p-2 text-left">Action</th></tr></thead><tbody id="threatTableBody" class="bg-slate-800"></tbody></table></div>
+        </section>
+        <section id="copilot" class="copilot-panel col-span-12 lg:col-span-4 bg-slate-800 p-4 rounded shadow dashboard-panel flex flex-col">
+            <div class="copilot-header"><div class="copilot-icon"><i data-lucide="bot"></i></div><div><div class="copilot-title">SentinelPulse Analyst</div><div class="copilot-subtitle">AI grounded in your threat feed</div></div><button id="clearChatBtn" class="clear-chat-btn" title="Clear chat" aria-label="Clear chat"><i data-lucide="trash-2"></i></button></div>
+            <div class="prompt-label">Quick analysis</div>
+            <div class="quick-prompts">
+                <button class="quick-btn" data-q="critical">Critical alerts</button>
+                <button class="quick-btn" data-q="dangerous_ip">Top source IP</button>
+                <button class="quick-btn" data-q="suggestion">Response steps</button>
+            </div>
+            <div id="chatLog" aria-live="polite"><div id="chatWelcome" class="chat-welcome">I can summarize alerts, compare indicators, and suggest defensive next steps based on the current feed.</div></div>
+            <div class="copilot-compose"><textarea id="chatInput" placeholder="Ask about your incidents…"></textarea><button id="sendChat" aria-label="Send message" title="Send"><i data-lucide="arrow-up"></i></button></div>
+        </section>
+    </main>
+    <footer class="p-4 text-center text-sm"><p>SentinelPulse AI · Lightweight AI-SOC Dashboard · Run with <code>python app.py</code></p></footer>
+    <script>document.addEventListener('DOMContentLoaded', () => lucide.createIcons());</script>
+</body>
+</html>
